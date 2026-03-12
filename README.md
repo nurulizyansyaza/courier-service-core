@@ -1,1 +1,1 @@
-# courier-service
+# courier-service-core
