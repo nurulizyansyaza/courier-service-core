@@ -14,7 +14,7 @@ npm install @nurulizyansyaza/courier-service-core
 Returns total cost: `baseCost + weight×10 + distance×5`
 
 ### `applyOffer(cost, pkg, offers)`
-Returns `{ discount, finalCost }` after applying a matching offer.
+Returns the discount amount (as a `number`) after applying a matching offer to `cost`.
 
 ### `estimateCost(baseCost, packages, offers)`
 **Problem 1** — Returns `DeliveryResult[]` with `id`, `discount`, `cost` for each package.

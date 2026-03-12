@@ -15,7 +15,7 @@ export function parsePackages(baseCost: number, count: number, lines: string[]):
     if (isNaN(weight) || weight <= 0) throw new Error(`Package line ${i + 1}: invalid weight`);
     if (isNaN(distance) || distance <= 0) throw new Error(`Package line ${i + 1}: invalid distance`);
 
-    return { id, weight, distance, offerCode };
+    return { id, weight, distance, offerCode: offerCode ?? '' };
   });
 }
 

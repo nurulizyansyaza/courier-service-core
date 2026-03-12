@@ -24,7 +24,13 @@ export const planShipments = (packages: Package[], fleet: Fleet): Map<string, nu
   return times;
 };
 
+const MAX_BITMASK_PACKAGES = 20;
+
 const findBestShipment = (packages: Package[], maxWeight: number): number[] => {
+  if (packages.length > MAX_BITMASK_PACKAGES) {
+    throw new Error(`Too many packages (${packages.length}): bitmask enumeration supports at most ${MAX_BITMASK_PACKAGES}`);
+  }
+
   let best: number[] = [];
   let bestWeight = 0;
   let bestMaxDist = Infinity;
