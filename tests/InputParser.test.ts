@@ -57,6 +57,21 @@ describe('InputParser', () => {
         .toThrow('Invalid distance');
     });
 
+    it('should throw when weight is 0', () => {
+      expect(() => parseInputBlock('100 1\nPKG1 0 5 OFR001', 'cost'))
+        .toThrow('Must be greater than 0');
+    });
+
+    it('should throw when distance is 0', () => {
+      expect(() => parseInputBlock('100 1\nPKG1 5 0 OFR001', 'cost'))
+        .toThrow('Must be greater than 0');
+    });
+
+    it('should throw when base cost is 0', () => {
+      expect(() => parseInputBlock('0 1\nPKG1 5 5 OFR001', 'cost'))
+        .toThrow('Base cost must be greater than 0');
+    });
+
     it('should throw when a package line has wrong field count', () => {
       expect(() => parseInputBlock('100 1\nPKG1 5 5', 'cost'))
         .toThrow('Expected 4 values');

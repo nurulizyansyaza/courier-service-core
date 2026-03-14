@@ -49,6 +49,10 @@ export function parseInputBlock(
     throw new Error('Invalid input: Base cost and package count must be numbers');
   }
 
+  if (baseCost <= 0) {
+    throw new Error('Invalid input: Base cost must be greater than 0');
+  }
+
   if (declaredPackageCount < 1) {
     throw new Error('Invalid input: Package count must be at least 1');
   }
@@ -135,8 +139,16 @@ export function parseInputBlock(
       throw new Error(`Invalid weight "${parts[1]}" at line ${i + 1}: Must be a number`);
     }
 
+    if (weight <= 0) {
+      throw new Error(`Invalid weight "${parts[1]}" at line ${i + 1}: Must be greater than 0`);
+    }
+
     if (isNaN(distance) || !/^\d+(\.\d+)?$/.test(parts[2])) {
       throw new Error(`Invalid distance "${parts[2]}" at line ${i + 1}: Must be a number`);
+    }
+
+    if (distance <= 0) {
+      throw new Error(`Invalid distance "${parts[2]}" at line ${i + 1}: Must be greater than 0`);
     }
 
     const rawOfferCode = parts[3];

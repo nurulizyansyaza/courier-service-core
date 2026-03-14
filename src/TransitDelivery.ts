@@ -29,6 +29,12 @@ export function calculateDeliveryTimeWithTransit(
 
   const orderedResults = estimateDetailedDelivery(baseCost, mergedPackages, offers, vehicles);
 
+  // Map package IDs to original offer codes from input (not the applied offer code)
+  const originalOfferCodes = new Map<string, string>();
+  for (const pkg of mergedPackages) {
+    originalOfferCodes.set(pkg.id.toLowerCase(), pkg.offerCode || '');
+  }
+
   const stillInTransitIds = new Set(stillInTransit.map(tp => tp.id.toLowerCase()));
   const workingPkgIds = new Set(workingPackages.map(p => p.id.toLowerCase()));
   const newTransitPackages: TransitPackageInput[] = [];
@@ -42,7 +48,7 @@ export function calculateDeliveryTimeWithTransit(
           id: r.id,
           weight: r.weight,
           distance: r.distance,
-          offerCode: r.offerCode || '',
+          offerCode: originalOfferCodes.get(r.id.toLowerCase()) || r.offerCode || '',
         });
       }
       outputLines.push(`${r.id} ${Math.round(r.discount)} ${Math.round(r.totalCost)} N/A`);

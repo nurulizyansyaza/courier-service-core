@@ -67,9 +67,9 @@ export function estimateDetailedDelivery(
     const shipment = findBestShipment(remainingPackages, vehicles.maxWeight);
 
     if (shipment.length === 0) {
-      remainingPackages.shift();
-      roundNumber--;
-      continue;
+      // Invariant: remainingPackages only contains packages where weight <= maxWeight,
+      // so findBestShipment should always return at least one package.
+      throw new Error('Invariant violation: no shipment found for deliverable packages');
     }
 
     const maxDistance = Math.max(...shipment.map(pkg => pkg.distance));
@@ -125,11 +125,29 @@ export function estimateDetailedDelivery(
   });
 }
 
+// Intentionally uses weight-priority tie-breaking (heaviest total first, then most packages)
+// rather than ShipmentPlanner's count-priority approach, to match the challenge expected output.
+const MAX_PACKAGES_FOR_ENUMERATION = 20;
+
 function findBestShipment<T extends Package & { discount: number; totalCost: number }>(
   packages: T[],
   maxWeight: number
 ): T[] {
   const n = packages.length;
+
+  if (n > MAX_PACKAGES_FOR_ENUMERATION) {
+    // Greedy fallback for large inputs to avoid exponential O(2^n) complexity
+    const result: T[] = [];
+    let remaining = maxWeight;
+    for (const pkg of packages) {
+      if (pkg.weight <= remaining) {
+        result.push(pkg);
+        remaining -= pkg.weight;
+      }
+    }
+    return result;
+  }
+
   let bestShipment: T[] = [];
   let bestWeight = 0;
 

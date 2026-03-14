@@ -106,6 +106,14 @@ describe('OfferManager', () => {
       expect(getOfferCodeFromDiscount(1000, 0, DEFAULT_OFFERS)).toBeUndefined();
     });
 
+    it('should return undefined when deliveryCost is 0 (avoid division by zero)', () => {
+      expect(getOfferCodeFromDiscount(0, 50, DEFAULT_OFFERS)).toBeUndefined();
+    });
+
+    it('should return undefined when deliveryCost is negative', () => {
+      expect(getOfferCodeFromDiscount(-100, 50, DEFAULT_OFFERS)).toBeUndefined();
+    });
+
     it('should return "OFFER APPLIED" when no matching offer found', () => {
       const result = getOfferCodeFromDiscount(1000, 150, DEFAULT_OFFERS); // 15% — no match
       expect(result).toBe('OFFER APPLIED');
