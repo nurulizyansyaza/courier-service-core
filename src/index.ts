@@ -1,9 +1,15 @@
-export { Package, Offer, Fleet, DeliveryResult } from './types';
+export { Package, Offer, Fleet, DeliveryResult, CalcOfferCriteria, DetailedDeliveryResult, ParsedResult, TransitPackageInput, TransitAwareResult } from './types';
 export { calculateCost } from './CostCalculator';
 export { applyOffer } from './OfferService';
 export { planShipments } from './ShipmentPlanner';
 export { estimateCost, estimateDelivery } from './DeliveryEstimator';
 export { parsePackages, parseFleet } from './InputValidator';
+export { parseInputBlock } from './InputParser';
+export { createOfferManager, findBestOffer, getOfferCodeFromDiscount } from './OfferManager';
+export { resolveTransitConflicts } from './TransitResolver';
+export { calculatePackageCost, estimateDetailedDelivery } from './DetailedDelivery';
+export { parseOutput } from './OutputParser';
+export { calculateDeliveryTimeWithTransit } from './TransitDelivery';
 
 import { Offer } from './types';
 
