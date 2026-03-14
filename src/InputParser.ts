@@ -1,14 +1,31 @@
 import { Package, CalcOfferCriteria } from './types';
 
+export interface ParseInputOptions {
+  offers?: Record<string, CalcOfferCriteria>;
+  /** When true, reject unknown offer codes. When false (default), accept any code. */
+  strictOfferCodes?: boolean;
+}
+
 export function parseInputBlock(
   input: string,
   mode: 'cost' | 'time',
-  offers?: Record<string, CalcOfferCriteria>
+  offersOrOptions?: Record<string, CalcOfferCriteria> | ParseInputOptions
 ): {
   baseCost: number;
   packages: Package[];
   vehicles?: { count: number; maxSpeed: number; maxWeight: number };
 } {
+  let offers: Record<string, CalcOfferCriteria> | undefined;
+  let strictOfferCodes = false;
+
+  if (offersOrOptions && typeof offersOrOptions === 'object' && 'strictOfferCodes' in offersOrOptions) {
+    const opts = offersOrOptions as ParseInputOptions;
+    offers = opts.offers;
+    strictOfferCodes = opts.strictOfferCodes ?? false;
+  } else {
+    offers = offersOrOptions as Record<string, CalcOfferCriteria> | undefined;
+  }
+
   const lines = input.trim().split('\n').filter(line => line.trim());
 
   if (mode === 'cost' && lines.length < 2) {
@@ -123,7 +140,7 @@ export function parseInputBlock(
     }
 
     const rawOfferCode = parts[3];
-    if (!isValidOfferCode(rawOfferCode, knownOffers)) {
+    if (strictOfferCodes && !isValidOfferCode(rawOfferCode, knownOffers)) {
       const validCodes = Object.keys(knownOffers).join('/');
       throw new Error(
         `Invalid offer code "${rawOfferCode}" at line ${i + 1}: Must be one of: ${validCodes} (case-insensitive)`

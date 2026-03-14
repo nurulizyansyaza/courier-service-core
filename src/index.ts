@@ -4,7 +4,7 @@ export { applyOffer } from './OfferService';
 export { planShipments } from './ShipmentPlanner';
 export { estimateCost, estimateDelivery } from './DeliveryEstimator';
 export { parsePackages, parseFleet } from './InputValidator';
-export { parseInputBlock } from './InputParser';
+export { parseInputBlock, ParseInputOptions } from './InputParser';
 export { createOfferManager, findBestOffer, getOfferCodeFromDiscount } from './OfferManager';
 export { resolveTransitConflicts } from './TransitResolver';
 export { calculatePackageCost, estimateDetailedDelivery } from './DetailedDelivery';
