@@ -1,6 +1,6 @@
 # @nurulizyansyaza/courier-service-core
 
-Zero-dependency TypeScript library for the **Courier Service** coding challenge. Handles cost calculation, offer discounts, shipment planning, and delivery time estimation.
+Zero-dependency TypeScript library for the **Courier Service** App Calculator. Handles cost calculation, offer discounts, shipment planning, and delivery time estimation.
 
 ## Installation
 
