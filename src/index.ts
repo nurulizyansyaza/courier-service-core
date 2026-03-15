@@ -1,15 +1,37 @@
+// ── Types ────────────────────────────────────────────────────────────────
 export { Package, Offer, Fleet, DeliveryResult, CalcOfferCriteria, DetailedDeliveryResult, ParsedResult, TransitPackageInput, TransitAwareResult } from './types';
+
+// ── Frontend-based calculation engine ────────────────────────────────────
+export {
+  setOffers,
+  getOffers,
+  getOffersRef,
+  parseInput,
+  findBestOffer,
+  calculatePackageCost,
+  calculateDeliveryCost,
+  computeDeliveryResultsFromParsed,
+  computeDeliveryResultsWithTransit,
+  calculateDeliveryTime,
+  calculateDeliveryTimeWithTransit,
+  parseOutput,
+  getOfferCodeFromDiscount,
+  isValidPackageId,
+  isValidOfferCode,
+  normalizeOfferCode,
+} from './calculations';
+
+// ── Transit conflict resolution ──────────────────────────────────────────
+export { resolveTransitConflicts } from './TransitResolver';
+
+// ── Legacy exports (backward compatibility for old tests) ────────────────
 export { calculateCost } from './CostCalculator';
 export { applyOffer } from './OfferService';
 export { planShipments } from './ShipmentPlanner';
 export { estimateCost, estimateDelivery } from './DeliveryEstimator';
 export { parsePackages, parseFleet } from './InputValidator';
 export { parseInputBlock, ParseInputOptions } from './InputParser';
-export { createOfferManager, findBestOffer, getOfferCodeFromDiscount, DEFAULT_CALC_OFFERS, toOfferArray } from './OfferManager';
-export { resolveTransitConflicts } from './TransitResolver';
-export { calculatePackageCost, estimateDetailedDelivery } from './DetailedDelivery';
-export { parseOutput } from './OutputParser';
-export { calculateDeliveryTimeWithTransit } from './TransitDelivery';
+export { createOfferManager, DEFAULT_CALC_OFFERS, toOfferArray } from './OfferManager';
 
 import { Offer } from './types';
 
