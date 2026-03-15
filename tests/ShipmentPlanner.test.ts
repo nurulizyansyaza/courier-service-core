@@ -66,4 +66,44 @@ describe('planShipments', () => {
     // Third trip: C, time = 4 + 1 = 5
     expect(times.size).toBe(3);
   });
+
+  it('prefers the nearest shipment when weights are tied', () => {
+    // Two packages with identical weight, different distances
+    // Vehicle can carry only one at a time (maxWeight = 100)
+    // Both weigh 100kg → tie-break by nearest distance
+    const pkgs: Package[] = [
+      { id: 'FAR', weight: 100, distance: 200, offerCode: '' },
+      { id: 'NEAR', weight: 100, distance: 50, offerCode: '' },
+    ];
+    const f: Fleet = { count: 1, maxSpeed: 100, maxWeight: 100 };
+    const times = planShipments(pkgs, f);
+
+    // NEAR (50km) should be delivered first (time = 0.5)
+    // Vehicle returns at 2 * 50/100 = 1.0
+    // FAR delivered at 1.0 + 200/100 = 3.0
+    expect(times.get('NEAR')).toBe(0.5);
+    expect(times.get('FAR')).toBe(3);
+  });
+
+  it('prefers shipment combination with shortest max distance on weight tie', () => {
+    // Packages: A(60kg, 30km), B(40kg, 200km), C(40kg, 60km)
+    // maxWeight=100. Possible pairs:
+    //   A+B = 100kg, maxDist=200km
+    //   A+C = 100kg, maxDist=60km ← preferred (same weight, shorter distance)
+    const pkgs: Package[] = [
+      { id: 'A', weight: 60, distance: 30, offerCode: '' },
+      { id: 'B', weight: 40, distance: 200, offerCode: '' },
+      { id: 'C', weight: 40, distance: 60, offerCode: '' },
+    ];
+    const f: Fleet = { count: 1, maxSpeed: 100, maxWeight: 100 };
+    const times = planShipments(pkgs, f);
+
+    // First trip: A+C (100kg, maxDist=60km) preferred over A+B (100kg, maxDist=200km)
+    // A delivered at 30/100 = 0.3, C delivered at 60/100 = 0.6
+    // Vehicle returns at 2 * 60/100 = 1.2
+    // Second trip: B delivered at 1.2 + 200/100 = 3.2
+    expect(times.get('A')).toBe(0.3);
+    expect(times.get('C')).toBe(0.6);
+    expect(times.get('B')).toBe(3.2);
+  });
 });
