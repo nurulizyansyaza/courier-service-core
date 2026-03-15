@@ -53,7 +53,7 @@ function resolveTransitConflictsForParse(
 }
 
 export function getOfferCodeFromDiscount(deliveryCost: number, discount: number): string | undefined {
-  if (discount === 0) return undefined;
+  if (discount === 0 || deliveryCost <= 0) return undefined;
   const OFFERS = getOffersRef();
   const discountPercent = (discount / deliveryCost) * 100;
 
@@ -78,11 +78,11 @@ export function parseOutput(
   try {
     const { baseCost: bc, packages } = parseInput(input, calculationType);
     baseCost = bc;
-    packages.forEach(pkg => packagesMap.set(pkg.id, pkg));
+    packages.forEach(pkg => packagesMap.set(pkg.id.toLowerCase(), pkg));
     if (transitPackages) {
       for (const tp of transitPackages) {
-        if (!packagesMap.has(tp.id)) {
-          packagesMap.set(tp.id, { id: tp.id, weight: tp.weight, distance: tp.distance, offerCode: tp.offerCode });
+        if (!packagesMap.has(tp.id.toLowerCase())) {
+          packagesMap.set(tp.id.toLowerCase(), { id: tp.id, weight: tp.weight, distance: tp.distance, offerCode: tp.offerCode });
         }
       }
     }
@@ -92,10 +92,10 @@ export function parseOutput(
         if (vehicles) {
           const { workingPackages, clearedFromTransit: cleared } = resolveTransitConflictsForParse(parsedPkgs, transitPackages, vehicles.maxWeight);
           for (const wp of workingPackages) {
-            packagesMap.set(wp.id, wp);
+            packagesMap.set(wp.id.toLowerCase(), wp);
           }
           for (const ct of cleared) {
-            packagesMap.set(ct.id, { id: ct.id, weight: ct.weight, distance: ct.distance, offerCode: ct.offerCode });
+            packagesMap.set(ct.id.toLowerCase(), { id: ct.id, weight: ct.weight, distance: ct.distance, offerCode: ct.offerCode });
           }
         }
       } catch (_) {
@@ -117,7 +117,7 @@ export function parseOutput(
       const discount = parseInt(parts[1]);
       const totalCost = parseInt(parts[2]);
 
-      const pkg = packagesMap.get(pkgId);
+      const pkg = packagesMap.get(pkgId.toLowerCase());
       const weight = pkg?.weight || 0;
       const distance = pkg?.distance || 0;
       const deliveryCost = totalCost + discount;
@@ -138,7 +138,7 @@ export function parseOutput(
       const totalCost = parseInt(parts[2]);
       const deliveryTime = parts[3];
 
-      const pkg = packagesMap.get(pkgId);
+      const pkg = packagesMap.get(pkgId.toLowerCase());
       const weight = pkg?.weight || 0;
       const distance = pkg?.distance || 0;
       const deliveryCost = totalCost + discount;

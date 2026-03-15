@@ -2,7 +2,9 @@ import type { Package, DetailedDeliveryResult, TransitPackageInput, TransitAware
 import { parseInput } from './parser';
 import { calculatePackageCost } from './costCalculator';
 
-function findBestShipment<T extends Package & { discount: number; totalCost: number }>(
+const MAX_PACKAGES_FOR_EXACT = 20;
+
+function findBestShipmentExact<T extends Package & { discount: number; totalCost: number }>(
   packages: T[],
   maxWeight: number
 ): T[] {
@@ -38,6 +40,35 @@ function findBestShipment<T extends Package & { discount: number; totalCost: num
 
   tryShipment(0, [], 0);
   return bestShipment;
+}
+
+// Greedy fallback for large package counts to avoid exponential blowup
+function findBestShipmentGreedy<T extends Package & { discount: number; totalCost: number }>(
+  packages: T[],
+  maxWeight: number
+): T[] {
+  const sorted = [...packages].sort((a, b) => b.weight - a.weight || a.distance - b.distance);
+  const shipment: T[] = [];
+  let totalWeight = 0;
+
+  for (const pkg of sorted) {
+    if (totalWeight + pkg.weight <= maxWeight) {
+      shipment.push(pkg);
+      totalWeight += pkg.weight;
+    }
+  }
+
+  return shipment;
+}
+
+function findBestShipment<T extends Package & { discount: number; totalCost: number }>(
+  packages: T[],
+  maxWeight: number
+): T[] {
+  if (packages.length <= MAX_PACKAGES_FOR_EXACT) {
+    return findBestShipmentExact(packages, maxWeight);
+  }
+  return findBestShipmentGreedy(packages, maxWeight);
 }
 
 function resolveTransitConflicts(
