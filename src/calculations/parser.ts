@@ -1,31 +1,12 @@
-import { Package, CalcOfferCriteria } from './types';
+import type { Package } from '../types';
+import { getOffersRef } from './offersManager';
+import { isValidPackageId, isValidOfferCode, normalizeOfferCode } from './validators';
 
-export interface ParseInputOptions {
-  offers?: Record<string, CalcOfferCriteria>;
-  /** When true, reject unknown offer codes. When false (default), accept any code. */
-  strictOfferCodes?: boolean;
-}
-
-export function parseInputBlock(
-  input: string,
-  mode: 'cost' | 'time',
-  offersOrOptions?: Record<string, CalcOfferCriteria> | ParseInputOptions
-): {
+export function parseInput(input: string, mode: 'cost' | 'time'): {
   baseCost: number;
   packages: Package[];
   vehicles?: { count: number; maxSpeed: number; maxWeight: number };
 } {
-  let offers: Record<string, CalcOfferCriteria> | undefined;
-  let strictOfferCodes = false;
-
-  if (offersOrOptions && typeof offersOrOptions === 'object' && 'strictOfferCodes' in offersOrOptions) {
-    const opts = offersOrOptions as ParseInputOptions;
-    offers = opts.offers;
-    strictOfferCodes = opts.strictOfferCodes ?? false;
-  } else {
-    offers = offersOrOptions as Record<string, CalcOfferCriteria> | undefined;
-  }
-
   const lines = input.trim().split('\n').filter(line => line.trim());
 
   if (mode === 'cost' && lines.length < 2) {
@@ -49,10 +30,6 @@ export function parseInputBlock(
     throw new Error('Invalid input: Base cost and package count must be numbers');
   }
 
-  if (baseCost <= 0) {
-    throw new Error('Invalid input: Base cost must be greater than 0');
-  }
-
   if (declaredPackageCount < 1) {
     throw new Error('Invalid input: Package count must be at least 1');
   }
@@ -63,8 +40,7 @@ export function parseInputBlock(
   if (mode === 'time') {
     const lastLine = lines[lines.length - 1];
     const lastParts = lastLine.split(/\s+/).filter(p => p.trim());
-    const allNumbers = lastParts.length === 3
-      && lastParts.every(p => !isNaN(Number(p)) && /^\d+(\.\d+)?$/.test(p));
+    const allNumbers = lastParts.length === 3 && lastParts.every(p => !isNaN(Number(p)) && /^\d+(\.\d+)?$/.test(p));
 
     if (!allNumbers) {
       if (lastParts.length === 4 && isValidPackageId(lastParts[0])) {
@@ -78,22 +54,13 @@ export function parseInputBlock(
 
   const packageLineEnd = mode === 'time' ? lines.length - 1 : lines.length;
 
-  // Default known offer codes for validation
-  const knownOffers = offers ?? {
-    OFR001: { discount: 10, minDistance: 0, maxDistance: 200, minWeight: 70, maxWeight: 200 },
-    OFR002: { discount: 7, minDistance: 50, maxDistance: 150, minWeight: 100, maxWeight: 250 },
-    OFR003: { discount: 5, minDistance: 50, maxDistance: 250, minWeight: 10, maxWeight: 150 },
-  };
-
   for (let i = 1; i < packageLineEnd; i++) {
     const parts = lines[i].split(/\s+/).filter(p => p.trim());
 
     if (mode === 'cost' && i === lines.length - 1 && parts.length === 3) {
       const allNumbers = parts.every(p => !isNaN(Number(p)) && /^\d+(\.\d+)?$/.test(p));
       if (allNumbers) {
-        throw new Error(
-          `Line ${i + 1} looks like vehicle info (3 numbers), but you're in Delivery Cost mode which doesn't need vehicle info. Switch to Delivery Time mode if you need time estimation`
-        );
+        throw new Error(`Line ${i + 1} looks like vehicle info (3 numbers), but you're in Delivery Cost mode which doesn't need vehicle info. Switch to Delivery Time mode if you need time estimation`);
       }
     }
 
@@ -105,31 +72,19 @@ export function parseInputBlock(
         const hasSpacedOfferCode = /^(OFR|ofr)00[123]$/.test(lastTwo);
 
         if (hasSpacedPkgId && hasSpacedOfferCode) {
-          throw new Error(
-            `Line ${i + 1}: No spaces allowed in package ID or offer code. Use "${firstTwo}" not "${parts[0]} ${parts[1]}", and "${lastTwo}" not "${parts[parts.length - 2]} ${parts[parts.length - 1]}"`
-          );
+          throw new Error(`Line ${i + 1}: No spaces allowed in package ID or offer code. Use "${firstTwo}" not "${parts[0]} ${parts[1]}", and "${lastTwo}" not "${parts[parts.length - 2]} ${parts[parts.length - 1]}"`);
         } else if (hasSpacedPkgId) {
-          throw new Error(
-            `Line ${i + 1}: No spaces allowed in package ID. Use "${firstTwo}" not "${parts[0]} ${parts[1]}"`
-          );
+          throw new Error(`Line ${i + 1}: No spaces allowed in package ID. Use "${firstTwo}" not "${parts[0]} ${parts[1]}"`);
         } else if (hasSpacedOfferCode) {
-          throw new Error(
-            `Line ${i + 1}: No spaces allowed in offer code. Use "${lastTwo}" not "${parts[parts.length - 2]} ${parts[parts.length - 1]}"`
-          );
+          throw new Error(`Line ${i + 1}: No spaces allowed in offer code. Use "${lastTwo}" not "${parts[parts.length - 2]} ${parts[parts.length - 1]}"`);
         }
-        throw new Error(
-          `Line ${i + 1}: Expected exactly 4 values (pkg_id weight distance offer_code) but found ${parts.length}. Ensure no spaces within package ID (e.g., PKG1 not PKG 1) or offer code (e.g., OFR001 not OFR 001)`
-        );
+        throw new Error(`Line ${i + 1}: Expected exactly 4 values (pkg_id weight distance offer_code) but found ${parts.length}. Ensure no spaces within package ID (e.g., PKG1 not PKG 1) or offer code (e.g., OFR001 not OFR 001)`);
       }
-      throw new Error(
-        `Line ${i + 1}: Expected 4 values (pkg_id weight distance offer_code) but found ${parts.length}`
-      );
+      throw new Error(`Line ${i + 1}: Expected 4 values (pkg_id weight distance offer_code) but found ${parts.length}`);
     }
 
     if (!isValidPackageId(parts[0])) {
-      throw new Error(
-        `Invalid package ID "${parts[0]}" at line ${i + 1}: Must be "PKG" or "pkg" followed by digits with no spaces (e.g., PKG1, pkg2)`
-      );
+      throw new Error(`Invalid package ID "${parts[0]}" at line ${i + 1}: Must be "PKG" or "pkg" followed by digits with no spaces (e.g., PKG1, pkg2)`);
     }
 
     const weight = Number(parts[1]);
@@ -139,30 +94,21 @@ export function parseInputBlock(
       throw new Error(`Invalid weight "${parts[1]}" at line ${i + 1}: Must be a number`);
     }
 
-    if (weight <= 0) {
-      throw new Error(`Invalid weight "${parts[1]}" at line ${i + 1}: Must be greater than 0`);
-    }
-
     if (isNaN(distance) || !/^\d+(\.\d+)?$/.test(parts[2])) {
       throw new Error(`Invalid distance "${parts[2]}" at line ${i + 1}: Must be a number`);
     }
 
-    if (distance <= 0) {
-      throw new Error(`Invalid distance "${parts[2]}" at line ${i + 1}: Must be greater than 0`);
-    }
-
+    const OFFERS = getOffersRef();
     const rawOfferCode = parts[3];
-    if (strictOfferCodes && !isValidOfferCode(rawOfferCode, knownOffers)) {
-      const validCodes = Object.keys(knownOffers).join('/');
-      throw new Error(
-        `Invalid offer code "${rawOfferCode}" at line ${i + 1}: Must be one of: ${validCodes} (case-insensitive)`
-      );
+    if (!isValidOfferCode(rawOfferCode)) {
+      const validCodes = Object.keys(OFFERS).join('/');
+      throw new Error(`Invalid offer code "${rawOfferCode}" at line ${i + 1}: Must be one of: ${validCodes} (case-insensitive)`);
     }
 
     packages.push({
       id: parts[0],
-      weight,
-      distance,
+      weight: weight,
+      distance: distance,
       offerCode: normalizeOfferCode(rawOfferCode),
     });
   }
@@ -171,7 +117,6 @@ export function parseInputBlock(
     throw new Error('No valid packages found');
   }
 
-  // Check for duplicate IDs
   const seenIds = new Set<string>();
   for (const pkg of packages) {
     const normalizedId = pkg.id.toLowerCase();
@@ -181,25 +126,19 @@ export function parseInputBlock(
     seenIds.add(normalizedId);
   }
 
-  // Check incremental IDs
   const pkgNumbers = packages.map(pkg => {
     const match = pkg.id.match(/^(?:pkg|PKG)(\d+)$/i);
     return match ? parseInt(match[1]) : 0;
   });
   for (let i = 0; i < pkgNumbers.length; i++) {
     if (pkgNumbers[i] !== i + 1) {
-      throw new Error(
-        `Package IDs must be incremental starting from 1 (pkg1, pkg2, pkg3, ...). Found "${packages[i].id}" but expected "PKG${i + 1}" at position ${i + 1}`
-      );
+      throw new Error(`Package IDs must be incremental starting from 1 (pkg1, pkg2, pkg3, ...). Found "${packages[i].id}" but expected "PKG${i + 1}" at position ${i + 1}`);
     }
   }
 
-  // Verify count matches
   if (packages.length !== declaredPackageCount) {
     if (mode === 'cost' && packages.length < declaredPackageCount) {
-      throw new Error(
-        `Expected ${declaredPackageCount} packages but found ${packages.length}. Make sure all package lines have 4 fields: pkg_id weight distance offer_code`
-      );
+      throw new Error(`Expected ${declaredPackageCount} packages but found ${packages.length}. Make sure all package lines have 4 fields: pkg_id weight distance offer_code`);
     }
     throw new Error(`Expected ${declaredPackageCount} packages but found ${packages.length}`);
   }
@@ -225,19 +164,4 @@ export function parseInputBlock(
   }
 
   return { baseCost, packages, vehicles };
-}
-
-function isValidPackageId(value: string): boolean {
-  return /^(pkg|PKG)\d+$/i.test(value);
-}
-
-function isValidOfferCode(
-  value: string,
-  offers: Record<string, unknown>
-): boolean {
-  return value.toUpperCase() in offers;
-}
-
-function normalizeOfferCode(code: string): string {
-  return code.toUpperCase();
 }
