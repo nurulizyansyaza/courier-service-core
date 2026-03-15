@@ -63,6 +63,15 @@ Built-in offers: `OFR001` (10%), `OFR002` (7%), `OFR003` (5%).
 npm test
 ```
 
+## CI/CD
+
+GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
+
+1. **Test** — runs `npm test` on Node 18 + 20
+2. **Trigger Staging Deploy** — on push to `main`, dispatches a `repository_dispatch` event to [`courier-service`](https://github.com/nurulizyansyaza/courier-service), which triggers the staging deployment pipeline
+
+Requires a `DEPLOY_TRIGGER_TOKEN` secret (fine-grained PAT with Actions + Contents write access on the `courier-service` repo).
+
 ## Project Structure
 
 ```
