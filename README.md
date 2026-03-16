@@ -22,7 +22,7 @@ npm install @nurulizyansyaza/courier-service-core
 | `ParsedResult` | Result parsed from CLI-style text output |
 | `CalcOfferCriteria` | Offer matching criteria |
 | `TransitPackageInput` | In-transit package descriptor |
-| `TransitAwareResult` | Delivery result that accounts for in-transit packages |
+| `TransitAwareResult` | Delivery result that accounts for in-transit packages. Includes `output` (formatted text) and `results: DetailedDeliveryResult[]` (full detailed results with vehicleId, deliveryRound, packagesRemaining, currentTime, vehicleReturnTime, roundTripTime) |
 
 ### Offers
 
@@ -68,6 +68,10 @@ Package IDs must be incremental starting from 1 (`PKG1`, `PKG2`, `PKG3`, …) an
 no_of_vehicles max_speed max_weight
 ```
 
+**Vehicle line validation:**
+- In time mode, if the vehicle line has the wrong number of values (e.g., 4 numbers instead of 3), the error now says `"Expected exactly 3 numbers ... but found N"` instead of a generic message.
+- In cost mode, all-numbers lines (any count) on the last line are detected as likely vehicle info and produce a helpful suggestion to switch to time mode.
+
 #### Multi-Error Collection
 
 The parser collects **all** validation errors and reports them together in a single error message (newline-separated), so you can see everything that needs fixing at once:
@@ -96,7 +100,7 @@ All IDs and offer codes are normalized to uppercase on output.
 - **`computeDeliveryResultsFromParsed(baseCost, packages, vehicles)`** — Core planner: returns `DetailedDeliveryResult[]` with delivery times, vehicle assignments, and round info.
 - **`computeDeliveryResultsWithTransit(input, transitPackages)`** — Same as above but merges in-transit packages.
 - **`calculateDeliveryTime(input)`** — End-to-end: parse input → plan → return formatted string.
-- **`calculateDeliveryTimeWithTransit(input, transitPackages)`** — End-to-end with transit support, returns `TransitAwareResult`.
+- **`calculateDeliveryTimeWithTransit(input, transitPackages)`** — End-to-end with transit support, returns `TransitAwareResult` containing both formatted `output` text and a `results: DetailedDeliveryResult[]` array with full vehicle/round/time metadata.
 
 ### Output Parsing
 
@@ -106,7 +110,7 @@ All IDs and offer codes are normalized to uppercase on output.
 ## Testing
 
 ```bash
-npm test
+npm test        # 123 tests across 6 test suites
 ```
 
 ## CI/CD
