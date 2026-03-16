@@ -112,7 +112,8 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
         // Detect spaces within identifiers
         const spacedIdErrors: string[] = [];
         const firstTwo = parts[0].toLowerCase() + parts[1];
-        const hasSpacedPkgId = /^pkg\d+$/i.test(firstTwo);
+        // Only flag spaced package ID if parts[0] alone is NOT already a valid ID
+        const hasSpacedPkgId = !isValidPackageId(parts[0]) && /^pkg\d+$/i.test(firstTwo);
         const lastTwo = parts[parts.length - 2] + parts[parts.length - 1];
         const hasSpacedOfferCode = /^(OFR|ofr)\d+$/i.test(lastTwo) || /^na$/i.test(lastTwo);
 

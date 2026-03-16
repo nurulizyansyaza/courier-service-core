@@ -212,6 +212,13 @@ describe('parseInput — extra spaces in identifiers', () => {
     expect(error).toContain('No spaces allowed in package ID');
     expect(error).toContain('No spaces allowed in offer code');
   });
+
+  it('does not falsely flag valid package ID as spaced when offer code has space', () => {
+    const input = '100 1\npkg3 100 40 ofr 002';
+    const error = getErrorMessage(() => parseInput(input, 'cost'));
+    expect(error).toContain('No spaces allowed in offer code');
+    expect(error).not.toContain('No spaces allowed in package ID');
+  });
 });
 
 describe('parseInput — multi-error collection', () => {
