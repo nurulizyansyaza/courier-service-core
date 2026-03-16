@@ -323,6 +323,7 @@ export function calculateDeliveryTimeWithTransit(
 
   return {
     output: outputLines.join('\n'),
+    results: orderedResults,
     newTransitPackages,
     clearedFromTransit,
     stillInTransit,

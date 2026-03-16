@@ -83,6 +83,7 @@ export interface TransitPackageInput {
 
 export interface TransitAwareResult {
   output: string;
+  results: DetailedDeliveryResult[];
   newTransitPackages: TransitPackageInput[];
   clearedFromTransit: TransitPackageInput[];
   stillInTransit: TransitPackageInput[];
