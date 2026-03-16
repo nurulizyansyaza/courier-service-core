@@ -72,6 +72,29 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 
 Requires a `DEPLOY_TRIGGER_TOKEN` secret (fine-grained PAT with Actions + Contents write access on the `courier-service` repo).
 
+## Module Architecture
+
+```mermaid
+graph TB
+    Consumer["Consumer<br/>(CLI · API · Frontend)"] --> Index["index.ts<br/>barrel re-exports"]
+
+    subgraph Core["calculations/"]
+        Index --> Parser["parser.ts<br/>parseInput"]
+        Index --> Validators["validators.ts<br/>isValidPackageId · isValidOfferCode"]
+        Index --> Cost["costCalculator.ts<br/>calculatePackageCost · findBestOffer"]
+        Index --> Delivery["deliveryPlanner.ts<br/>computeDeliveryResults · transit"]
+        Index --> Offers["offersManager.ts<br/>setOffers · getOffers"]
+        Index --> Output["outputParser.ts<br/>parseOutput"]
+
+        Parser --> Validators
+        Cost --> Offers
+        Delivery --> Cost
+        Output --> Cost
+    end
+
+    Types["types.ts"] -.->|"shared types"| Core
+```
+
 ## Project Structure
 
 ```
