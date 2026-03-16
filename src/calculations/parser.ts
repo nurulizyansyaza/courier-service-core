@@ -63,7 +63,12 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
       if (lastParts.length === 4 && isValidPackageId(lastParts[0])) {
         errors.push('Missing vehicle info: Last line must be "no_of_vehicles max_speed max_weight" (3 numbers). Currently in Delivery Time mode which requires vehicle info');
       } else {
-        errors.push('Invalid vehicle info on last line: Expected 3 numbers (no_of_vehicles max_speed max_weight)');
+        const allNums = lastParts.every(p => !isNaN(Number(p)) && /^\d+(\.\d+)?$/.test(p));
+        if (allNums && lastParts.length !== 3) {
+          errors.push(`Invalid vehicle info on last line: Expected exactly 3 numbers (no_of_vehicles max_speed max_weight) but found ${lastParts.length}`);
+        } else {
+          errors.push('Invalid vehicle info on last line: Expected 3 numbers (no_of_vehicles max_speed max_weight)');
+        }
       }
     } else {
       vehicleLineIndex = lines.length - 1;
@@ -98,10 +103,14 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
     const lineErrors: string[] = [];
 
     // Detect vehicle-like line in cost mode
-    if (mode === 'cost' && i === lines.length - 1 && parts.length === 3) {
+    if (mode === 'cost' && i === lines.length - 1) {
       const allNumbers = parts.every(p => !isNaN(Number(p)) && /^\d+(\.\d+)?$/.test(p));
-      if (allNumbers) {
-        errors.push(`Line ${lineNum} looks like vehicle info (3 numbers), but you're in Delivery Cost mode which doesn't need vehicle info. Switch to Delivery Time mode if you need time estimation`);
+      if (allNumbers && !isValidPackageId(parts[0])) {
+        if (parts.length === 3) {
+          errors.push(`Line ${lineNum} looks like vehicle info (3 numbers), but you're in Delivery Cost mode which doesn't need vehicle info. Switch to Delivery Time mode if you need time estimation`);
+        } else {
+          errors.push(`Line ${lineNum} looks like vehicle info (all numbers), but you're in Delivery Cost mode which doesn't need vehicle info. Switch to Delivery Time mode if you need time estimation. Note: vehicle info expects exactly 3 values (no_of_vehicles max_speed max_weight) but found ${parts.length}`);
+        }
         continue;
       }
     }
