@@ -207,25 +207,22 @@ export function computeDeliveryResultsFromParsed(
     );
   }
 
-  const orderedResults = packages.map(pkg => {
-    const undeliverable = undeliverablePackages.find(u => u.id === pkg.id);
-    if (undeliverable) {
-      return {
-        id: undeliverable.id,
-        discount: undeliverable.discount,
-        totalCost: undeliverable.totalCost,
-        offerCode: undeliverable.offerCode,
-        baseCost: baseCost,
-        weight: undeliverable.weight,
-        distance: undeliverable.distance,
-        deliveryCost: undeliverable.deliveryCost,
-        undeliverable: true,
-        undeliverableReason: `${pkg.id} will be out for delivery if there is a vehicle that can carry ${undeliverable.weight}kg and above`,
-      } as DetailedDeliveryResult;
-    }
-    const result = deliveryResults.find(r => r.id === pkg.id);
-    return result!;
-  });
+  // Order by delivery round (ascending), then undeliverable at end
+  const orderedResults: DetailedDeliveryResult[] = [
+    ...deliveryResults,
+    ...undeliverablePackages.map(pkg => ({
+      id: pkg.id,
+      discount: pkg.discount,
+      totalCost: pkg.totalCost,
+      offerCode: pkg.offerCode,
+      baseCost: baseCost,
+      weight: pkg.weight,
+      distance: pkg.distance,
+      deliveryCost: pkg.deliveryCost,
+      undeliverable: true,
+      undeliverableReason: `${pkg.id} will be out for delivery if there is a vehicle that can carry ${pkg.weight}kg and above`,
+    } as DetailedDeliveryResult)),
+  ];
 
   return orderedResults;
 }
