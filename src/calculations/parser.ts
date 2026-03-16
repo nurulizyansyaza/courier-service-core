@@ -7,39 +7,52 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
   packages: Package[];
   vehicles?: { count: number; maxSpeed: number; maxWeight: number };
 } {
+  const errors: string[] = [];
   const lines = input.trim().split('\n').filter(line => line.trim());
 
+  // --- Minimum line count check (fatal — cannot continue without lines) ---
   if (mode === 'cost' && lines.length < 2) {
     throw new Error('Invalid input: Need at least header line and one package line');
   }
-
   if (mode === 'time' && lines.length < 3) {
     throw new Error('Invalid input: Need header line, at least one package line, and vehicle info line');
   }
 
-  const firstLineParts = lines[0].split(/\s+/);
+  // --- Header line validation (line 1): must be exactly 2 numeric values ---
+  const firstLineParts = lines[0].split(/\s+/).filter(p => p.trim());
 
-  if (firstLineParts.length < 2) {
-    throw new Error('Invalid format: Line 1 must have base_cost and no_of_packages');
+  if (firstLineParts.length !== 2) {
+    errors.push(`Line 1: Must have exactly 2 values (base_cost no_of_packages) but found ${firstLineParts.length}`);
   }
 
-  const baseCost = Number(firstLineParts[0]);
-  const declaredPackageCount = Number(firstLineParts[1]);
+  let baseCost = NaN;
+  let declaredPackageCount = NaN;
 
-  if (isNaN(baseCost) || isNaN(declaredPackageCount)) {
-    throw new Error('Invalid input: Base cost and package count must be numbers');
+  if (firstLineParts.length >= 1) {
+    if (!/^\d+(\.\d+)?$/.test(firstLineParts[0])) {
+      errors.push(`Line 1: Base cost "${firstLineParts[0]}" must be a number`);
+    } else {
+      baseCost = Number(firstLineParts[0]);
+      if (baseCost <= 0) {
+        errors.push('Line 1: Base cost must be greater than 0');
+      }
+    }
   }
 
-  if (baseCost <= 0) {
-    throw new Error('Invalid input: Base cost must be greater than 0');
+  if (firstLineParts.length >= 2) {
+    if (!/^\d+$/.test(firstLineParts[1])) {
+      errors.push(`Line 1: Package count "${firstLineParts[1]}" must be a whole number`);
+    } else {
+      declaredPackageCount = Number(firstLineParts[1]);
+      if (declaredPackageCount < 1) {
+        errors.push('Line 1: Package count must be at least 1');
+      }
+    }
   }
 
-  if (declaredPackageCount < 1) {
-    throw new Error('Invalid input: Package count must be at least 1');
-  }
-
-  const packages: Package[] = [];
+  // --- Vehicle line validation (time mode) ---
   let vehicleLineIndex = -1;
+  let vehicles: { count: number; maxSpeed: number; maxWeight: number } | undefined;
 
   if (mode === 'time') {
     const lastLine = lines[lines.length - 1];
@@ -48,129 +61,168 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
 
     if (!allNumbers) {
       if (lastParts.length === 4 && isValidPackageId(lastParts[0])) {
-        throw new Error('Missing vehicle info: Last line must be "no_of_vehicles max_speed max_weight" (3 numbers). Currently in Delivery Time mode which requires vehicle info');
+        errors.push('Missing vehicle info: Last line must be "no_of_vehicles max_speed max_weight" (3 numbers). Currently in Delivery Time mode which requires vehicle info');
+      } else {
+        errors.push('Invalid vehicle info on last line: Expected 3 numbers (no_of_vehicles max_speed max_weight)');
       }
-      throw new Error('Invalid vehicle info on last line: Expected 3 numbers (no_of_vehicles max_speed max_weight)');
-    }
+    } else {
+      vehicleLineIndex = lines.length - 1;
+      const vehicleParts = lastParts.map(Number);
+      vehicles = {
+        count: vehicleParts[0],
+        maxSpeed: vehicleParts[1],
+        maxWeight: vehicleParts[2],
+      };
 
-    vehicleLineIndex = lines.length - 1;
+      if (vehicles.count < 1) {
+        errors.push('Vehicle info: Number of vehicles must be at least 1');
+      }
+      if (vehicles.maxSpeed <= 0) {
+        errors.push('Vehicle info: Max speed must be greater than 0');
+      }
+      if (vehicles.maxWeight <= 0) {
+        errors.push('Vehicle info: Max weight must be greater than 0');
+      }
+    }
   }
 
+  // --- Package lines validation ---
+  const packages: Package[] = [];
   const packageLineEnd = mode === 'time' ? lines.length - 1 : lines.length;
+  const OFFERS = getOffersRef();
+  const validCodes = Object.keys(OFFERS).join('/');
 
   for (let i = 1; i < packageLineEnd; i++) {
     const parts = lines[i].split(/\s+/).filter(p => p.trim());
+    const lineNum = i + 1;
+    const lineErrors: string[] = [];
 
+    // Detect vehicle-like line in cost mode
     if (mode === 'cost' && i === lines.length - 1 && parts.length === 3) {
       const allNumbers = parts.every(p => !isNaN(Number(p)) && /^\d+(\.\d+)?$/.test(p));
       if (allNumbers) {
-        throw new Error(`Line ${i + 1} looks like vehicle info (3 numbers), but you're in Delivery Cost mode which doesn't need vehicle info. Switch to Delivery Time mode if you need time estimation`);
+        errors.push(`Line ${lineNum} looks like vehicle info (3 numbers), but you're in Delivery Cost mode which doesn't need vehicle info. Switch to Delivery Time mode if you need time estimation`);
+        continue;
       }
     }
 
+    // Check field count
     if (parts.length !== 4) {
       if (parts.length > 4) {
+        // Detect spaces within identifiers
+        const spacedIdErrors: string[] = [];
         const firstTwo = parts[0].toLowerCase() + parts[1];
         const hasSpacedPkgId = /^pkg\d+$/i.test(firstTwo);
         const lastTwo = parts[parts.length - 2] + parts[parts.length - 1];
-        const hasSpacedOfferCode = /^(OFR|ofr)00[123]$/.test(lastTwo);
+        const hasSpacedOfferCode = /^(OFR|ofr)\d+$/i.test(lastTwo) || /^na$/i.test(lastTwo);
 
-        if (hasSpacedPkgId && hasSpacedOfferCode) {
-          throw new Error(`Line ${i + 1}: No spaces allowed in package ID or offer code. Use "${firstTwo}" not "${parts[0]} ${parts[1]}", and "${lastTwo}" not "${parts[parts.length - 2]} ${parts[parts.length - 1]}"`);
-        } else if (hasSpacedPkgId) {
-          throw new Error(`Line ${i + 1}: No spaces allowed in package ID. Use "${firstTwo}" not "${parts[0]} ${parts[1]}"`);
-        } else if (hasSpacedOfferCode) {
-          throw new Error(`Line ${i + 1}: No spaces allowed in offer code. Use "${lastTwo}" not "${parts[parts.length - 2]} ${parts[parts.length - 1]}"`);
+        if (hasSpacedPkgId) {
+          spacedIdErrors.push(`No spaces allowed in package ID. Use "${firstTwo.toUpperCase()}" not "${parts[0]} ${parts[1]}"`);
         }
-        throw new Error(`Line ${i + 1}: Expected exactly 4 values (pkg_id weight distance offer_code) but found ${parts.length}. Ensure no spaces within package ID (e.g., PKG1 not PKG 1) or offer code (e.g., OFR001 not OFR 001)`);
+        if (hasSpacedOfferCode) {
+          spacedIdErrors.push(`No spaces allowed in offer code. Use "${lastTwo.toUpperCase()}" not "${parts[parts.length - 2]} ${parts[parts.length - 1]}"`);
+        }
+
+        if (spacedIdErrors.length > 0) {
+          errors.push(`Line ${lineNum}: ${spacedIdErrors.join('. ')}`);
+        } else {
+          errors.push(`Line ${lineNum}: Expected exactly 4 values (pkg_id weight distance offer_code) but found ${parts.length}. Ensure no spaces within package ID (e.g., PKG1 not PKG 1) or offer code (e.g., OFR001 not OFR 001)`);
+        }
+      } else {
+        errors.push(`Line ${lineNum}: Expected 4 values (pkg_id weight distance offer_code) but found ${parts.length}`);
       }
-      throw new Error(`Line ${i + 1}: Expected 4 values (pkg_id weight distance offer_code) but found ${parts.length}`);
+      continue;
     }
 
-    if (!isValidPackageId(parts[0])) {
-      throw new Error(`Invalid package ID "${parts[0]}" at line ${i + 1}: Must be "PKG" or "pkg" followed by digits with no spaces (e.g., PKG1, pkg2)`);
+    // Validate each of the 4 fields and collect all errors for this line
+
+    // Field 1: Package ID — must be "PKG" followed by digits (case-insensitive)
+    const rawId = parts[0];
+    if (!isValidPackageId(rawId)) {
+      lineErrors.push(`Invalid package ID "${rawId}": Must be "PKG" followed by digits (e.g., PKG1, pkg2)`);
     }
 
-    const weight = Number(parts[1]);
-    const distance = Number(parts[2]);
-
-    if (isNaN(weight) || !/^\d+(\.\d+)?$/.test(parts[1])) {
-      throw new Error(`Invalid weight "${parts[1]}" at line ${i + 1}: Must be a number`);
-    }
-    if (weight <= 0) {
-      throw new Error(`Invalid weight "${parts[1]}" at line ${i + 1}: Must be greater than 0`);
-    }
-
-    if (isNaN(distance) || !/^\d+(\.\d+)?$/.test(parts[2])) {
-      throw new Error(`Invalid distance "${parts[2]}" at line ${i + 1}: Must be a number`);
-    }
-    if (distance <= 0) {
-      throw new Error(`Invalid distance "${parts[2]}" at line ${i + 1}: Must be greater than 0`);
+    // Field 2: Weight — must be a positive number
+    const rawWeight = parts[1];
+    let weight = NaN;
+    if (!/^\d+(\.\d+)?$/.test(rawWeight)) {
+      lineErrors.push(`Invalid weight "${rawWeight}": Must be a number`);
+    } else {
+      weight = Number(rawWeight);
+      if (weight <= 0) {
+        lineErrors.push(`Invalid weight "${rawWeight}": Must be greater than 0`);
+      }
     }
 
-    const OFFERS = getOffersRef();
+    // Field 3: Distance — must be a positive number
+    const rawDistance = parts[2];
+    let distance = NaN;
+    if (!/^\d+(\.\d+)?$/.test(rawDistance)) {
+      lineErrors.push(`Invalid distance "${rawDistance}": Must be a number`);
+    } else {
+      distance = Number(rawDistance);
+      if (distance <= 0) {
+        lineErrors.push(`Invalid distance "${rawDistance}": Must be greater than 0`);
+      }
+    }
+
+    // Field 4: Offer code — must be OFR+digits, NA, or a known custom code
     const rawOfferCode = parts[3];
     if (!isValidOfferCode(rawOfferCode)) {
-      const validCodes = Object.keys(OFFERS).join('/');
-      throw new Error(`Invalid offer code "${rawOfferCode}" at line ${i + 1}: Must be one of: ${validCodes} (case-insensitive)`);
+      lineErrors.push(`Invalid offer code "${rawOfferCode}": Must be one of: ${validCodes}, NA (case-insensitive)`);
     }
 
-    packages.push({
-      id: parts[0],
-      weight: weight,
-      distance: distance,
-      offerCode: normalizeOfferCode(rawOfferCode),
+    if (lineErrors.length > 0) {
+      errors.push(...lineErrors.map(e => `Line ${lineNum}: ${e}`));
+    } else {
+      packages.push({
+        id: rawId.toUpperCase(),
+        weight,
+        distance,
+        offerCode: normalizeOfferCode(rawOfferCode),
+      });
+    }
+  }
+
+  // --- Cross-package validations (only if we have valid packages) ---
+  if (packages.length > 0) {
+    // Duplicate ID check
+    const seenIds = new Set<string>();
+    for (const pkg of packages) {
+      const normalizedId = pkg.id.toUpperCase();
+      if (seenIds.has(normalizedId)) {
+        errors.push(`Duplicate package ID "${pkg.id}": Each package must have a unique ID`);
+      }
+      seenIds.add(normalizedId);
+    }
+
+    // Incremental ID check
+    const pkgNumbers = packages.map(pkg => {
+      const match = pkg.id.match(/^PKG(\d+)$/i);
+      return match ? parseInt(match[1]) : 0;
     });
-  }
-
-  if (packages.length === 0) {
-    throw new Error('No valid packages found');
-  }
-
-  const seenIds = new Set<string>();
-  for (const pkg of packages) {
-    const normalizedId = pkg.id.toLowerCase();
-    if (seenIds.has(normalizedId)) {
-      throw new Error(`Duplicate package ID "${pkg.id}": Each package must have a unique ID`);
+    for (let i = 0; i < pkgNumbers.length; i++) {
+      if (pkgNumbers[i] !== i + 1) {
+        errors.push(`Package IDs must be incremental starting from 1 (PKG1, PKG2, PKG3, ...). Found "${packages[i].id}" but expected "PKG${i + 1}" at position ${i + 1}`);
+        break;
+      }
     }
-    seenIds.add(normalizedId);
+  } else if (errors.length === 0) {
+    errors.push('No valid packages found');
   }
 
-  const pkgNumbers = packages.map(pkg => {
-    const match = pkg.id.match(/^(?:pkg|PKG)(\d+)$/i);
-    return match ? parseInt(match[1]) : 0;
-  });
-  for (let i = 0; i < pkgNumbers.length; i++) {
-    if (pkgNumbers[i] !== i + 1) {
-      throw new Error(`Package IDs must be incremental starting from 1 (pkg1, pkg2, pkg3, ...). Found "${packages[i].id}" but expected "PKG${i + 1}" at position ${i + 1}`);
-    }
-  }
-
-  if (packages.length !== declaredPackageCount) {
+  // --- Package count mismatch ---
+  if (!isNaN(declaredPackageCount) && packages.length !== declaredPackageCount && packages.length > 0) {
     if (mode === 'cost' && packages.length < declaredPackageCount) {
-      throw new Error(`Expected ${declaredPackageCount} packages but found ${packages.length}. Make sure all package lines have 4 fields: pkg_id weight distance offer_code`);
+      errors.push(`Expected ${declaredPackageCount} packages but found ${packages.length}. Make sure all package lines have 4 fields: pkg_id weight distance offer_code`);
+    } else {
+      errors.push(`Expected ${declaredPackageCount} packages but found ${packages.length}`);
     }
-    throw new Error(`Expected ${declaredPackageCount} packages but found ${packages.length}`);
   }
 
-  let vehicles;
-  if (vehicleLineIndex !== -1) {
-    const vehicleParts = lines[vehicleLineIndex].split(/\s+/).map(Number);
-    vehicles = {
-      count: vehicleParts[0],
-      maxSpeed: vehicleParts[1],
-      maxWeight: vehicleParts[2],
-    };
-
-    if (vehicles.count < 1) {
-      throw new Error('Invalid vehicle info: Number of vehicles must be at least 1');
-    }
-    if (vehicles.maxSpeed <= 0) {
-      throw new Error('Invalid vehicle info: Max speed must be greater than 0');
-    }
-    if (vehicles.maxWeight <= 0) {
-      throw new Error('Invalid vehicle info: Max weight must be greater than 0');
-    }
+  // --- Throw all collected errors ---
+  if (errors.length > 0) {
+    throw new Error(errors.join('\n'));
   }
 
   return { baseCost, packages, vehicles };

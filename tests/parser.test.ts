@@ -37,6 +37,18 @@ describe('parseInput — cost mode', () => {
     const result = parseInput(input, 'cost');
     expect(result.packages[0].offerCode).toBe('OFR001');
   });
+
+  it('normalizes package IDs to uppercase', () => {
+    const input = '100 1\npkg1 50 30 OFR001';
+    const result = parseInput(input, 'cost');
+    expect(result.packages[0].id).toBe('PKG1');
+  });
+
+  it('handles extra spaces between fields gracefully', () => {
+    const input = '100   3\nPKG1   5   5   OFR001\nPKG2   15   5   OFR002\nPKG3   10   100   OFR003';
+    const result = parseInput(input, 'cost');
+    expect(result.packages).toHaveLength(3);
+  });
 });
 
 describe('parseInput — time mode', () => {
@@ -105,7 +117,7 @@ describe('parseInput — error cases', () => {
 
   it('throws on non-numeric base cost', () => {
     const input = 'abc 1\nPKG1 5 5 OFR001';
-    expect(() => parseInput(input, 'cost')).toThrow(/must be numbers/);
+    expect(() => parseInput(input, 'cost')).toThrow(/must be a number/);
   });
 
   it('throws when package count is 0', () => {
@@ -118,3 +130,145 @@ describe('parseInput — error cases', () => {
     expect(() => parseInput(input, 'cost')).toThrow(/Expected 1 packages but found 2|Delivery Cost mode/);
   });
 });
+
+describe('parseInput — strict header validation', () => {
+  it('rejects header with more than 2 values', () => {
+    const input = '100 3 extra\nPKG1 5 5 OFR001\nPKG2 15 5 OFR002\nPKG3 10 100 OFR003';
+    expect(() => parseInput(input, 'cost')).toThrow(/Line 1: Must have exactly 2 values/);
+  });
+
+  it('rejects header with only 1 value', () => {
+    const input = '100\nPKG1 5 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Line 1: Must have exactly 2 values/);
+  });
+
+  it('rejects non-numeric base cost', () => {
+    const input = 'abc 1\nPKG1 5 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Base cost "abc" must be a number/);
+  });
+
+  it('rejects non-numeric package count', () => {
+    const input = '100 abc\nPKG1 5 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Package count "abc" must be a whole number/);
+  });
+
+  it('rejects decimal package count', () => {
+    const input = '100 2.5\nPKG1 5 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Package count "2.5" must be a whole number/);
+  });
+
+  it('rejects negative base cost', () => {
+    const input = '-100 1\nPKG1 5 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Base cost "-100" must be a number/);
+  });
+});
+
+describe('parseInput — strict package line validation', () => {
+  it('rejects non-numeric weight', () => {
+    const input = '100 1\nPKG1 abc 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Invalid weight "abc": Must be a number/);
+  });
+
+  it('rejects non-numeric distance', () => {
+    const input = '100 1\nPKG1 5 abc OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Invalid distance "abc": Must be a number/);
+  });
+
+  it('rejects negative weight', () => {
+    const input = '100 1\nPKG1 -5 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Invalid weight "-5": Must be a number/);
+  });
+
+  it('rejects negative distance', () => {
+    const input = '100 1\nPKG1 5 -10 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Invalid distance "-10": Must be a number/);
+  });
+
+  it('rejects weight with letters', () => {
+    const input = '100 1\nPKG1 5kg 10 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Invalid weight "5kg": Must be a number/);
+  });
+
+  it('rejects distance with letters', () => {
+    const input = '100 1\nPKG1 5 10km OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/Invalid distance "10km": Must be a number/);
+  });
+});
+
+describe('parseInput — extra spaces in identifiers', () => {
+  it('detects space in package ID (PKG 1)', () => {
+    const input = '100 1\nPKG 1 5 5 OFR001';
+    expect(() => parseInput(input, 'cost')).toThrow(/No spaces allowed in package ID/);
+  });
+
+  it('detects space in offer code (OFR 001)', () => {
+    const input = '100 1\nPKG1 5 5 OFR 001';
+    expect(() => parseInput(input, 'cost')).toThrow(/No spaces allowed in offer code/);
+  });
+
+  it('detects spaces in both package ID and offer code', () => {
+    const input = '100 1\nPKG 1 5 5 OFR 001';
+    const error = getErrorMessage(() => parseInput(input, 'cost'));
+    expect(error).toContain('No spaces allowed in package ID');
+    expect(error).toContain('No spaces allowed in offer code');
+  });
+});
+
+describe('parseInput — multi-error collection', () => {
+  it('collects multiple errors across different lines', () => {
+    const input = '100 2\nABC 5 5 BADCODE\nXYZ abc def INVALID';
+    const error = getErrorMessage(() => parseInput(input, 'cost'));
+    expect(error).toContain('Invalid package ID "ABC"');
+    expect(error).toContain('Invalid offer code "BADCODE"');
+    expect(error).toContain('Invalid package ID "XYZ"');
+    expect(error).toContain('Invalid weight "abc"');
+    expect(error).toContain('Invalid distance "def"');
+    expect(error).toContain('Invalid offer code "INVALID"');
+  });
+
+  it('collects header error plus package errors', () => {
+    const input = 'abc xyz\nBAD -5 abc WRONG';
+    const error = getErrorMessage(() => parseInput(input, 'cost'));
+    expect(error).toContain('Base cost "abc" must be a number');
+    expect(error).toContain('Package count "xyz" must be a whole number');
+    expect(error).toContain('Invalid package ID "BAD"');
+    expect(error).toContain('Invalid weight "-5"');
+    expect(error).toContain('Invalid distance "abc"');
+    expect(error).toContain('Invalid offer code "WRONG"');
+  });
+
+  it('collects errors from multiple package lines at once', () => {
+    const input = '100 3\nPKG1 abc 5 OFR001\nPKG2 10 def OFR002\nPKG3 5 5 BADCODE';
+    const error = getErrorMessage(() => parseInput(input, 'cost'));
+    expect(error).toContain('Line 2: Invalid weight "abc"');
+    expect(error).toContain('Line 3: Invalid distance "def"');
+    expect(error).toContain('Line 4: Invalid offer code "BADCODE"');
+  });
+
+  it('shows all field errors within a single package line', () => {
+    const input = '100 1\nBAD abc def WRONG';
+    const error = getErrorMessage(() => parseInput(input, 'cost'));
+    expect(error).toContain('Invalid package ID "BAD"');
+    expect(error).toContain('Invalid weight "abc"');
+    expect(error).toContain('Invalid distance "def"');
+    expect(error).toContain('Invalid offer code "WRONG"');
+  });
+
+  it('includes vehicle errors alongside package errors in time mode', () => {
+    const input = '100 1\nBAD 5 5 OFR001\n0 0 0';
+    const error = getErrorMessage(() => parseInput(input, 'time'));
+    expect(error).toContain('Invalid package ID "BAD"');
+    expect(error).toContain('Number of vehicles must be at least 1');
+    expect(error).toContain('Max speed must be greater than 0');
+    expect(error).toContain('Max weight must be greater than 0');
+  });
+});
+
+function getErrorMessage(fn: () => void): string {
+  try {
+    fn();
+    return '';
+  } catch (e: unknown) {
+    return (e as Error).message;
+  }
+}

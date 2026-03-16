@@ -39,6 +39,52 @@ Built-in offers: `OFR001` (10%), `OFR002` (7%), `OFR003` (5%).
 - **`isValidOfferCode(value)`** — Check if a string is a known offer code or `'NA'`.
 - **`normalizeOfferCode(code)`** — Upper-case an offer code.
 
+#### Input Format Rules
+
+**Line 1 (header)** — exactly 2 values, both numbers only:
+```
+base_cost no_of_packages
+```
+| Field | Rule |
+|-------|------|
+| `base_cost` | Positive number (no letters, no negatives) |
+| `no_of_packages` | Whole number ≥ 1 (no decimals, no letters) |
+
+**Lines 2–N (packages)** — exactly 4 values per line:
+```
+pkg_id weight distance offer_code
+```
+| Field | Rule | Valid | Invalid |
+|-------|------|-------|---------|
+| `pkg_id` | `PKG` + digits, case-insensitive, no spaces/hyphens | `PKG1`, `pkg2` | `PKG 1`, `PKG-1`, `-pkg1`, `p-1`, `ABC` |
+| `weight` | Positive number only | `5`, `10.5` | `abc`, `5kg`, `-5` |
+| `distance` | Positive number only | `100`, `30.5` | `abc`, `10km`, `-10` |
+| `offer_code` | `OFR` + digits or `NA`, case-insensitive, no spaces/hyphens | `OFR001`, `ofr002`, `NA` | `OFR 001`, `OFR-001`, `ofr1-`, `o-1`, `BADCODE` |
+
+Package IDs must be incremental starting from 1 (`PKG1`, `PKG2`, `PKG3`, …) and unique.
+
+**Last line (vehicles, time mode only)** — exactly 3 positive numbers:
+```
+no_of_vehicles max_speed max_weight
+```
+
+#### Multi-Error Collection
+
+The parser collects **all** validation errors and reports them together in a single error message (newline-separated), so you can see everything that needs fixing at once:
+
+```
+Line 1: Base cost "abc" must be a number
+Line 1: Package count "xyz" must be a whole number
+Line 2: Invalid package ID "BAD": Must be "PKG" followed by digits (e.g., PKG1, pkg2)
+Line 2: Invalid weight "-5": Must be a number
+Line 3: Invalid distance "10km": Must be a number
+Line 3: Invalid offer code "WRONG": Must be one of: OFR001/OFR002/OFR003, NA (case-insensitive)
+```
+
+Extra spaces **between** fields are handled gracefully (`PKG1   5   5   OFR001` works). Spaces **within** identifiers are detected and reported (`PKG 1` → use `PKG1`, `OFR 001` → use `OFR001`).
+
+All IDs and offer codes are normalized to uppercase on output.
+
 ### Cost Calculation
 
 - **`calculatePackageCost(pkg, baseCost)`** — Returns `{ discount, totalCost, offerCode?, deliveryCost }` for a single package.
