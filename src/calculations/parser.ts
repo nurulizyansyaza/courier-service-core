@@ -260,7 +260,6 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
   packages: Package[];
   vehicles?: { count: number; maxSpeed: number; maxWeight: number };
 } {
-  const errors: string[] = [];
   const lines = input.trim().split('\n').filter(line => line.trim());
 
   // Minimum line count check (fatal — cannot continue without lines)
@@ -271,25 +270,52 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
     throw new Error('Invalid input: Need header line, at least one package line, and vehicle info line');
   }
 
-  // Header
+  // Step 1: Validate header — stop if errors
+  const headerErrors: string[] = [];
   const firstLineParts = lines[0].split(/\s+/).filter(p => p.trim());
-  const { baseCost, declaredPackageCount } = validateHeader(firstLineParts, errors);
-
-  // Vehicles (time mode)
-  let vehicles: { count: number; maxSpeed: number; maxWeight: number } | undefined;
-  if (mode === 'time') {
-    vehicles = validateVehicleLine(lines[lines.length - 1], errors);
+  const { baseCost, declaredPackageCount } = validateHeader(firstLineParts, headerErrors);
+  if (headerErrors.length > 0) {
+    throw new Error(headerErrors.join('\n'));
   }
 
-  // Packages
+  // Step 2: Validate package lines one by one — stop at first line with errors
   const packageLineEnd = mode === 'time' ? lines.length - 1 : lines.length;
-  const packages = validatePackages(lines, packageLineEnd, mode, errors);
+  const packages: Package[] = [];
+  const OFFERS = getOffersRef();
+  const validCodes = Object.keys(OFFERS).join('/');
 
-  // Cross-package validations
-  validateCrossPackage(packages, declaredPackageCount, mode, errors);
+  for (let i = 1; i < packageLineEnd; i++) {
+    const parts = lines[i].split(/\s+/).filter(p => p.trim());
+    const lineNum = i + 1;
+    const isLastLine = i === lines.length - 1;
+    const lineErrors: string[] = [];
 
-  if (errors.length > 0) {
-    throw new Error(errors.join('\n'));
+    if (detectFieldCountErrors(parts, lineNum, mode, isLastLine, lineErrors)) {
+      throw new Error(lineErrors.join('\n'));
+    }
+
+    const pkg = validatePackageLine(parts, lineNum, validCodes, lineErrors);
+    if (lineErrors.length > 0) {
+      throw new Error(lineErrors.join('\n'));
+    }
+    if (pkg) packages.push(pkg);
+  }
+
+  // Step 3: Validate vehicle line (time mode) — stop if errors
+  let vehicles: { count: number; maxSpeed: number; maxWeight: number } | undefined;
+  if (mode === 'time') {
+    const vehicleErrors: string[] = [];
+    vehicles = validateVehicleLine(lines[lines.length - 1], vehicleErrors);
+    if (vehicleErrors.length > 0) {
+      throw new Error(vehicleErrors.join('\n'));
+    }
+  }
+
+  // Step 4: Cross-package validations (only after all lines pass individually)
+  const crossErrors: string[] = [];
+  validateCrossPackage(packages, declaredPackageCount, mode, crossErrors);
+  if (crossErrors.length > 0) {
+    throw new Error(crossErrors.join('\n'));
   }
 
   return { baseCost, packages, vehicles };
