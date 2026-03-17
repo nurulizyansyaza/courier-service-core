@@ -1,8 +1,40 @@
 # @nurulizyansyaza/courier-service-core
 
-Zero-dependency TypeScript library for the **Courier Service** App Calculator. Handles cost calculation, offer discounts, shipment planning, and delivery time estimation.
+Zero-dependency TypeScript library for the **Courier Service** App Calculator. Handles cost calculation, offer discounts, shipment planning and delivery time estimation.
 
-## Installation
+## Setup
+
+### Prerequisites
+
+- **Node.js** 18 or 20 — check with `node --version`
+- **npm** — check with `npm --version`
+
+### Step 1 — Install dependencies
+
+```bash
+cd courier-service-core
+npm install
+```
+
+### Step 2 — Build the library
+
+```bash
+npm run build
+```
+
+This creates a `dist/` folder with the compiled JavaScript. Other repos (API, CLI, Frontend) depend on this — always build core first.
+
+### Step 3 — Run the tests
+
+```bash
+npm test
+```
+
+You should see all **147 tests** pass across **8 test suites**.
+
+## Installation (as a package)
+
+If you want to use the core library as an npm package in another project:
 
 ```bash
 npm install @nurulizyansyaza/courier-service-core
@@ -122,8 +154,10 @@ All IDs and offer codes are normalized to uppercase on output.
 ## Testing
 
 ```bash
-npm test       
+npm test
 ```
+
+You should see all **147 tests** pass across **8 test suites**.
 
 ## CI/CD
 
