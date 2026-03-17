@@ -20,7 +20,7 @@ describe('computeDeliveryResultsFromParsed — Everest challenge', () => {
   const baseCost = 100;
   const packages: Package[] = [
     { id: 'PKG1', weight: 50, distance: 30, offerCode: 'OFR001' },
-    { id: 'PKG2', weight: 75, distance: 125, offerCode: 'OFR008' },
+    { id: 'PKG2', weight: 75, distance: 125, offerCode: 'NA' },
     { id: 'PKG3', weight: 175, distance: 100, offerCode: 'OFR003' },
     { id: 'PKG4', weight: 110, distance: 60, offerCode: 'OFR002' },
     { id: 'PKG5', weight: 155, distance: 95, offerCode: 'NA' },
@@ -38,7 +38,7 @@ describe('computeDeliveryResultsFromParsed — Everest challenge', () => {
     expect(Math.round(pkg1.discount)).toBe(0);
     expect(Math.round(pkg1.totalCost)).toBe(750);
 
-    // PKG2: deliveryCost=100+750+625=1475, OFR008 unknown → 0
+    // PKG2: deliveryCost=100+750+625=1475, NA → 0
     const pkg2 = results.find(r => r.id === 'PKG2')!;
     expect(Math.round(pkg2.discount)).toBe(0);
     expect(Math.round(pkg2.totalCost)).toBe(1475);
@@ -126,7 +126,7 @@ describe('computeDeliveryResultsFromParsed — single package', () => {
 
 describe('calculateDeliveryTime', () => {
   it('returns formatted output string for Everest challenge', () => {
-    const input = '100 5\nPKG1 50 30 OFR001\nPKG2 75 125 OFR008\nPKG3 175 100 OFR003\nPKG4 110 60 OFR002\nPKG5 155 95 NA\n2 70 200';
+    const input = '100 5\nPKG1 50 30 OFR001\nPKG2 75 125 NA\nPKG3 175 100 OFR003\nPKG4 110 60 OFR002\nPKG5 155 95 NA\n2 70 200';
     const output = calculateDeliveryTime(input);
     const lines = output.split('\n');
 

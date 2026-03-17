@@ -29,14 +29,14 @@ describe('isValidPackageId', () => {
 });
 
 describe('isValidOfferCode', () => {
-  it.each(['OFR001', 'OFR002', 'OFR003', 'ofr001', 'Ofr002', 'NA', 'na', 'OFR999', 'OFR100'])(
+  it.each(['OFR001', 'OFR002', 'OFR003', 'ofr001', 'Ofr002', 'NA', 'na'])(
     'accepts valid offer code "%s"',
     (code) => {
       expect(isValidOfferCode(code)).toBe(true);
     }
   );
 
-  it.each(['RANDOM', '', 'ABC', 'OFR', 'OFR00A', 'OFR 001', '123', 'OFFER1'])(
+  it.each(['RANDOM', '', 'ABC', 'OFR', 'OFR00A', 'OFR 001', '123', 'OFFER1', 'OFR999', 'OFR100', 'OFR00', 'OFR0001'])(
     'rejects invalid offer code "%s"',
     (code) => {
       expect(isValidOfferCode(code)).toBe(false);

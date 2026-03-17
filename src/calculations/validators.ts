@@ -7,7 +7,6 @@ export function isValidPackageId(value: string): boolean {
 export function isValidOfferCode(value: string): boolean {
   const normalized = value.toUpperCase();
   if (normalized === 'NA') return true;
-  if (/^OFR\d+$/i.test(value)) return true;
   return normalized in getOffersRef();
 }
 
