@@ -221,30 +221,35 @@ describe('parseInput — extra spaces in identifiers', () => {
   });
 });
 
-describe('parseInput — line-by-line error reporting', () => {
-  it('stops at first package line with errors and does not show later lines', () => {
+describe('parseInput — multi-error collection', () => {
+  it('collects multiple errors across different lines', () => {
     const input = '100 2\nABC 5 5 BADCODE\nXYZ abc def INVALID';
     const error = getErrorMessage(() => parseInput(input, 'cost'));
     expect(error).toContain('Invalid package ID "ABC"');
     expect(error).toContain('Invalid offer code "BADCODE"');
-    expect(error).not.toContain('XYZ');
-    expect(error).not.toContain('Invalid weight "abc"');
+    expect(error).toContain('Invalid package ID "XYZ"');
+    expect(error).toContain('Invalid weight "abc"');
+    expect(error).toContain('Invalid distance "def"');
+    expect(error).toContain('Invalid offer code "INVALID"');
   });
 
-  it('stops at header errors before checking packages', () => {
+  it('collects header error plus package errors', () => {
     const input = 'abc xyz\nBAD -5 abc WRONG';
     const error = getErrorMessage(() => parseInput(input, 'cost'));
     expect(error).toContain('Base cost "abc" must be a number');
     expect(error).toContain('Package count "xyz" must be a whole number');
-    expect(error).not.toContain('Invalid package ID');
+    expect(error).toContain('Invalid package ID "BAD"');
+    expect(error).toContain('Invalid weight "-5"');
+    expect(error).toContain('Invalid distance "abc"');
+    expect(error).toContain('Invalid offer code "WRONG"');
   });
 
-  it('stops at first package line with errors across multiple lines', () => {
+  it('collects errors from multiple package lines at once', () => {
     const input = '100 3\nPKG1 abc 5 OFR001\nPKG2 10 def OFR002\nPKG3 5 5 BADCODE';
     const error = getErrorMessage(() => parseInput(input, 'cost'));
     expect(error).toContain('Line 2: Invalid weight "abc"');
-    expect(error).not.toContain('Line 3');
-    expect(error).not.toContain('Line 4');
+    expect(error).toContain('Line 3: Invalid distance "def"');
+    expect(error).toContain('Line 4: Invalid offer code "BADCODE"');
   });
 
   it('shows all field errors within a single package line', () => {
@@ -256,13 +261,13 @@ describe('parseInput — line-by-line error reporting', () => {
     expect(error).toContain('Invalid offer code "WRONG"');
   });
 
-  it('stops at package errors before checking vehicle line in time mode', () => {
+  it('includes vehicle errors alongside package errors in time mode', () => {
     const input = '100 1\nBAD 5 5 OFR001\n0 0 0';
     const error = getErrorMessage(() => parseInput(input, 'time'));
     expect(error).toContain('Invalid package ID "BAD"');
-    expect(error).not.toContain('Number of vehicles');
-    expect(error).not.toContain('Max speed');
-    expect(error).not.toContain('Max weight');
+    expect(error).toContain('Number of vehicles must be at least 1');
+    expect(error).toContain('Max speed must be greater than 0');
+    expect(error).toContain('Max weight must be greater than 0');
   });
 });
 

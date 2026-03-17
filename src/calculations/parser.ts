@@ -270,45 +270,28 @@ export function parseInput(input: string, mode: 'cost' | 'time'): {
     throw new Error('Invalid input: Need header line, at least one package line, and vehicle info line');
   }
 
-  // Step 1: Validate header — stop if errors
-  const headerErrors: string[] = [];
+  // Step 1: Validate header
+  const allErrors: string[] = [];
   const firstLineParts = lines[0].split(/\s+/).filter(p => p.trim());
-  const { baseCost, declaredPackageCount } = validateHeader(firstLineParts, headerErrors);
-  if (headerErrors.length > 0) {
-    throw new Error(headerErrors.join('\n'));
-  }
+  const { baseCost, declaredPackageCount } = validateHeader(firstLineParts, allErrors);
 
-  // Step 2: Validate package lines one by one — stop at first line with errors
+  // Step 2: Validate all package lines — collect errors from every line
   const packageLineEnd = mode === 'time' ? lines.length - 1 : lines.length;
-  const packages: Package[] = [];
-  const OFFERS = getOffersRef();
-  const validCodes = Object.keys(OFFERS).join('/');
+  const packageErrors: string[] = [];
+  const packages = validatePackages(lines, packageLineEnd, mode, packageErrors);
 
-  for (let i = 1; i < packageLineEnd; i++) {
-    const parts = lines[i].split(/\s+/).filter(p => p.trim());
-    const lineNum = i + 1;
-    const isLastLine = i === lines.length - 1;
-    const lineErrors: string[] = [];
-
-    if (detectFieldCountErrors(parts, lineNum, mode, isLastLine, lineErrors)) {
-      throw new Error(lineErrors.join('\n'));
-    }
-
-    const pkg = validatePackageLine(parts, lineNum, validCodes, lineErrors);
-    if (lineErrors.length > 0) {
-      throw new Error(lineErrors.join('\n'));
-    }
-    if (pkg) packages.push(pkg);
-  }
-
-  // Step 3: Validate vehicle line (time mode) — stop if errors
+  // Step 3: Validate vehicle line (time mode)
   let vehicles: { count: number; maxSpeed: number; maxWeight: number } | undefined;
   if (mode === 'time') {
     const vehicleErrors: string[] = [];
     vehicles = validateVehicleLine(lines[lines.length - 1], vehicleErrors);
-    if (vehicleErrors.length > 0) {
-      throw new Error(vehicleErrors.join('\n'));
-    }
+    allErrors.push(...vehicleErrors);
+  }
+
+  // Throw all collected errors at once
+  allErrors.push(...packageErrors);
+  if (allErrors.length > 0) {
+    throw new Error(allErrors.join('\n'));
   }
 
   // Step 4: Cross-package validations (only after all lines pass individually)
