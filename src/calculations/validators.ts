@@ -1,7 +1,8 @@
 import { getOffersRef } from './offersManager';
+import { PKG_ID_REGEX } from './constants';
 
 export function isValidPackageId(value: string): boolean {
-  return /^(pkg|PKG)\d+$/i.test(value);
+  return PKG_ID_REGEX.test(value);
 }
 
 export function isValidOfferCode(value: string): boolean {

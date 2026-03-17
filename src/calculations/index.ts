@@ -9,3 +9,12 @@ export {
   calculateDeliveryTimeWithTransit,
 } from './deliveryPlanner';
 export { parseOutput, getOfferCodeFromDiscount } from './outputParser';
+export { resolveTransitConflicts } from './transitHelpers';
+export type { TransitConflictResult } from './transitHelpers';
+export {
+  WEIGHT_MULTIPLIER,
+  DISTANCE_MULTIPLIER,
+  MAX_PACKAGES_FOR_EXACT,
+  PKG_ID_REGEX,
+  extractPackageNumber,
+} from './constants';

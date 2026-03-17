@@ -2,55 +2,7 @@ import type { Package, ParsedResult, TransitPackageInput } from '../types';
 import { getOffersRef } from './offersManager';
 import { parseInput } from './parser';
 import { computeDeliveryResultsWithTransit } from './deliveryPlanner';
-
-function resolveTransitConflictsForParse(
-  packages: Package[],
-  transitPackages: TransitPackageInput[],
-  maxWeight: number
-): {
-  workingPackages: Package[];
-  clearedFromTransit: TransitPackageInput[];
-} {
-  const workingPackages = packages.map(p => ({ ...p }));
-  const clearedFromTransit: TransitPackageInput[] = [];
-
-  const allIds = [
-    ...packages.map(p => {
-      const m = p.id.match(/^(?:pkg|PKG)(\d+)$/i);
-      return m ? parseInt(m[1]) : 0;
-    }),
-    ...transitPackages.map(tp => {
-      const m = tp.id.match(/^(?:pkg|PKG)(\d+)$/i);
-      return m ? parseInt(m[1]) : 0;
-    }),
-  ];
-  let nextPkgNumber = Math.max(...allIds, 0) + 1;
-  const workingIds = new Set(workingPackages.map(p => p.id.toLowerCase()));
-
-  for (const tp of transitPackages) {
-    const hasConflict = workingIds.has(tp.id.toLowerCase());
-
-    if (hasConflict && tp.weight <= maxWeight) {
-      const conflictingPkg = workingPackages.find(
-        p => p.id.toLowerCase() === tp.id.toLowerCase()
-      );
-      if (conflictingPkg) {
-        const oldId = conflictingPkg.id;
-        const prefix = oldId.match(/^(pkg|PKG)/i)?.[0] || 'pkg';
-        const newId = `${prefix}${nextPkgNumber}`;
-        workingIds.delete(oldId.toLowerCase());
-        workingIds.add(newId.toLowerCase());
-        conflictingPkg.id = newId;
-        nextPkgNumber++;
-      }
-      clearedFromTransit.push(tp);
-    } else if (!hasConflict && tp.weight <= maxWeight) {
-      clearedFromTransit.push(tp);
-    }
-  }
-
-  return { workingPackages, clearedFromTransit };
-}
+import { resolveTransitConflicts } from './transitHelpers';
 
 export function getOfferCodeFromDiscount(deliveryCost: number, discount: number): string | undefined {
   if (discount === 0 || deliveryCost <= 0) return undefined;
@@ -76,7 +28,7 @@ export function parseOutput(
   let packagesMap: Map<string, Package> = new Map();
 
   try {
-    const { baseCost: bc, packages } = parseInput(input, calculationType);
+    const { baseCost: bc, packages, vehicles } = parseInput(input, calculationType);
     baseCost = bc;
     packages.forEach(pkg => packagesMap.set(pkg.id.toLowerCase(), pkg));
     if (transitPackages) {
@@ -86,20 +38,13 @@ export function parseOutput(
         }
       }
     }
-    if (calculationType === 'time' && transitPackages && transitPackages.length > 0) {
-      try {
-        const { baseCost: _bc, packages: parsedPkgs, vehicles } = parseInput(input, 'time');
-        if (vehicles) {
-          const { workingPackages, clearedFromTransit: cleared } = resolveTransitConflictsForParse(parsedPkgs, transitPackages, vehicles.maxWeight);
-          for (const wp of workingPackages) {
-            packagesMap.set(wp.id.toLowerCase(), wp);
-          }
-          for (const ct of cleared) {
-            packagesMap.set(ct.id.toLowerCase(), { id: ct.id, weight: ct.weight, distance: ct.distance, offerCode: ct.offerCode });
-          }
-        }
-      } catch (_) {
-        // Ignore — best effort
+    if (calculationType === 'time' && transitPackages && transitPackages.length > 0 && vehicles) {
+      const { workingPackages, clearedFromTransit: cleared } = resolveTransitConflicts(packages, transitPackages, vehicles.maxWeight);
+      for (const wp of workingPackages) {
+        packagesMap.set(wp.id.toLowerCase(), wp);
+      }
+      for (const ct of cleared) {
+        packagesMap.set(ct.id.toLowerCase(), { id: ct.id, weight: ct.weight, distance: ct.distance, offerCode: ct.offerCode });
       }
     }
   } catch (e) {

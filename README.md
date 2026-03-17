@@ -34,10 +34,22 @@ Built-in offers: `OFR001` (10%), `OFR002` (7%), `OFR003` (5%).
 
 ### Parsing & Validation
 
-- **`parseInput(input, mode)`** — Parse multiline CLI-format text into `{ baseCost, packages, vehicles? }`. `mode` is `'cost'` or `'time'`.
+- **`parseInput(input, mode)`** — Parse multiline CLI-format text into `{ baseCost, packages, vehicles? }`. `mode` is `'cost'` or `'time'`. Internally delegates to focused validators: `validateHeader()`, `validateVehicleLine()`, `validatePackageLine()`, `validateCrossPackage()`.
 - **`isValidPackageId(value)`** — Check if a string matches the `PKG\d+` pattern.
 - **`isValidOfferCode(value)`** — Check if a string is a known offer code or `'NA'`.
 - **`normalizeOfferCode(code)`** — Upper-case an offer code.
+
+### Constants & Helpers
+
+- **`WEIGHT_MULTIPLIER`** (`10`) — Weight multiplier in cost formula.
+- **`DISTANCE_MULTIPLIER`** (`5`) — Distance multiplier in cost formula.
+- **`MAX_PACKAGES_FOR_EXACT`** (`20`) — Threshold for switching from exact (O(2^n)) to greedy shipment algorithm.
+- **`PKG_ID_REGEX`** — Shared regex for matching package IDs (`/^(?:pkg|PKG)\d+$/i`).
+- **`extractPackageNumber(id)`** — Extract numeric suffix from a package ID (e.g., `"PKG3"` → `3`).
+
+### Transit Conflict Resolution
+
+- **`resolveTransitConflicts(packages, transitPackages, maxWeight)`** — Resolve ID conflicts between working packages and in-transit packages. Returns `{ workingPackages, clearedFromTransit, stillInTransit, renamedPackages }`.
 
 #### Input Format Rules
 
@@ -110,7 +122,7 @@ All IDs and offer codes are normalized to uppercase on output.
 ## Testing
 
 ```bash
-npm test        # 123 tests across 6 test suites
+npm test       
 ```
 
 ## CI/CD
@@ -135,11 +147,19 @@ graph TB
         Index --> Delivery["deliveryPlanner.ts<br/>computeDeliveryResults · transit"]
         Index --> Offers["offersManager.ts<br/>setOffers · getOffers"]
         Index --> Output["outputParser.ts<br/>parseOutput"]
+        Index --> Transit["transitHelpers.ts<br/>resolveTransitConflicts"]
+        Index --> Constants["constants.ts<br/>multipliers · PKG_ID_REGEX"]
 
         Parser --> Validators
+        Parser --> Constants
+        Validators --> Constants
         Cost --> Offers
+        Cost --> Constants
         Delivery --> Cost
-        Output --> Cost
+        Delivery --> Transit
+        Delivery --> Constants
+        Output --> Transit
+        Transit --> Constants
     end
 
     Types["types.ts"] -.->|"shared types"| Core
@@ -153,10 +173,21 @@ src/
   index.ts                     # Barrel re-exports
   calculations/
     index.ts                   # Barrel for calculation modules
+    constants.ts               # WEIGHT_MULTIPLIER, DISTANCE_MULTIPLIER, PKG_ID_REGEX, extractPackageNumber
     costCalculator.ts          # calculatePackageCost, calculateDeliveryCost, findBestOffer
     deliveryPlanner.ts         # computeDeliveryResultsFromParsed, calculateDeliveryTime, transit support
     offersManager.ts           # setOffers, getOffers, getOffersRef + built-in offer table
     outputParser.ts            # parseOutput, getOfferCodeFromDiscount
-    parser.ts                  # parseInput
+    parser.ts                  # parseInput (delegates to validateHeader, validatePackageLine, etc.)
+    transitHelpers.ts          # resolveTransitConflicts (shared by deliveryPlanner + outputParser)
     validators.ts              # isValidPackageId, isValidOfferCode, normalizeOfferCode
+tests/
+  constants.test.ts            # 12 tests — multipliers, regex, extractPackageNumber
+  costCalculator.test.ts       # Cost calculation and offer matching
+  deliveryPlanner.test.ts      # Delivery planning, vehicle assignment, transit
+  offersManager.test.ts        # Offer table CRUD
+  outputParser.test.ts         # Output parsing and offer code reverse-lookup
+  parser.test.ts               # Input parsing, validation, multi-error collection
+  transitHelpers.test.ts       # 10 tests — conflict resolution, renaming, case sensitivity
+  validators.test.ts           # Package ID and offer code validation
 ```

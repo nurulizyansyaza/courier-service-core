@@ -1,6 +1,7 @@
 import type { Package, CalcOfferCriteria } from '../types';
 import { getOffersRef } from './offersManager';
 import { parseInput } from './parser';
+import { WEIGHT_MULTIPLIER, DISTANCE_MULTIPLIER } from './constants';
 
 export function findBestOffer(weight: number, distance: number): { code: string; criteria: CalcOfferCriteria } | null {
   const OFFERS = getOffersRef();
@@ -25,7 +26,7 @@ export function calculatePackageCost(
   baseCost: number
 ): { discount: number; totalCost: number; offerCode?: string; deliveryCost: number } {
   const OFFERS = getOffersRef();
-  const deliveryCost = baseCost + pkg.weight * 10 + pkg.distance * 5;
+  const deliveryCost = baseCost + pkg.weight * WEIGHT_MULTIPLIER + pkg.distance * DISTANCE_MULTIPLIER;
 
   let discount = 0;
   let appliedOfferCode: string | undefined;

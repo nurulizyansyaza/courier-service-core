@@ -19,4 +19,12 @@ export {
   isValidPackageId,
   isValidOfferCode,
   normalizeOfferCode,
+  resolveTransitConflicts,
+  WEIGHT_MULTIPLIER,
+  DISTANCE_MULTIPLIER,
+  MAX_PACKAGES_FOR_EXACT,
+  PKG_ID_REGEX,
+  extractPackageNumber,
 } from './calculations';
+
+export type { TransitConflictResult } from './calculations';
